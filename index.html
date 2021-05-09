@@ -98,7 +98,7 @@ var emptyCell;
 
 // Arrangement
 const FACT = [1, 1, 2, 6, 24, 120, 720, 5040, 40320, 362880, 3628800];
-const goal = '012345678';
+const goal = location.search.slice(1) || '012345678';
 function arrangementToInt(arr) {
 	let res = 0;
 	for (let i = 0; i < 8; ++i)
