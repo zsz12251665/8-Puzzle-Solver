@@ -1,0 +1,201 @@
+<html>
+	<head>
+		<title>Experiment 6</title>
+		<meta charset="UTF-8" />
+		<style>
+body
+{
+	height: 400px;
+	width: 600px;
+	margin: calc(50vh - 225px) auto;
+	padding: 10px;
+	border: medium black solid;
+}
+h1
+{
+	text-align: center;
+}
+u::before, u::after
+{
+	content: "　";
+}
+*.flex
+{
+	display: flex;
+	align-items: center;
+	justify-content: space-around;
+}
+div.grid
+{
+	background-color: black;
+	display: grid;
+	grid-template-columns: repeat(3, 1fr);
+	grid-gap: 5px;
+	padding: 5px;
+	height: 300px;
+	width: 300px;
+}
+div.cell
+{
+	background: white;
+	font-size: 72px;
+	font-weight: bold;
+	text-align: center;
+	user-select: none;
+}
+		</style>
+	</head>
+	<body>
+		<h1>Solution for 8-Puzzle Problem</h1>
+		<main class="flex">
+			<div class="grid">
+				<div class="cell"></div>
+				<div class="cell">1</div>
+				<div class="cell">2</div>
+				<div class="cell">3</div>
+				<div class="cell">4</div>
+				<div class="cell">5</div>
+				<div class="cell">6</div>
+				<div class="cell">7</div>
+				<div class="cell">8</div>
+			</div>
+			<div>
+				<h4>Please select one of them: </h4>
+				<div>
+					<input type="radio" name="method" id="BFS" checked />
+					<label for="BFS">BFS (Breadth-First-Search)</label>
+					<br />
+					<input type="radio" name="method" id="DFS" />
+					<label for="DFS">DFS (Depth-First-Search)</label>
+					<br />
+					<input type="radio" name="method" id="HFS" />
+					<label for="HFS">BFS (Best-First-Search)</label>
+					<br />
+					<input type="radio" name="method" id="BAB" />
+					<label for="BAB">(Branch-And-Bound)</label>
+				</div>
+				<div>
+					<h4>Result</h4>
+					<p style="text-align: center;"><u id="result">(No) Goal Node</u></p>
+					<p><b>Time(s): </b><u id="time"></u></p>
+					<p><b>Steps: </b><u id="step"></u></p>
+				</div>
+				<div class="flex">
+					<button id="init">Initialization</button>
+					<button id="run">Run</button>
+				</div>
+			</div>
+		</main>
+		<script async src="solver.js"></script>
+		<script>
+// DOM Elements
+const cells = document.querySelectorAll("div.cell");
+const radios = document.querySelectorAll('input[type="radio"]');
+const resultElement = document.querySelector('u#result');
+const timeElement = document.querySelector('u#time');
+const stepElement = document.querySelector('u#step');
+var emptyCell;
+
+// Arrangement
+const FACT = [1, 1, 2, 6, 24, 120, 720, 5040, 40320, 362880, 3628800];
+const goal = '012345678';
+function arrangementToInt(arr) {
+	let res = 0;
+	for (let i = 0; i < 8; ++i)
+		for (let j = i + 1; j < 9; ++j)
+			if (arr[i] > arr[j])
+				res += FACT[8 - i];
+	return res;
+}
+function intToArrangement(mask) {
+	let res = [0, 1, 2, 3, 4, 5, 6, 7, 8];
+	for (let i = 0; i < 8; ++i)
+		for (let t = Math.floor((mask % FACT[9 - i]) / FACT[8 - i]); t > 0; --t)
+			[res[i + t], res[i + t - 1]] = [res[i + t - 1], res[i + t]];
+	return res;
+}
+function reversionCount(arr) {
+	let tmp = [...arr];
+	let zeroPos = 0;
+	for (let i = 0; i < 9; ++i)
+		if (tmp[i] == 0)
+			zeroPos = i;
+	for (; zeroPos > 2; zeroPos -= 3)
+		[tmp[zeroPos], tmp[zeroPos - 3]] = [tmp[zeroPos - 3], tmp[zeroPos]];
+	for (; zeroPos > 0; zeroPos -= 1)
+		[tmp[zeroPos], tmp[zeroPos - 1]] = [tmp[zeroPos - 1], tmp[zeroPos]];
+	let res = 0;
+	for (let i = 1; i < 8; ++i)
+		for (let j = i + 1; j < 9; ++j)
+			res += tmp[i] > tmp[j];
+	return res;
+}
+
+// Result Animation
+var res = [];
+var inAnimation = false;
+const sleep = t => new Promise(resolve => setTimeout(resolve, t));
+async function animation() {
+	inAnimation = true;
+	for (const a of res) {
+		const arr = intToArrangement(a);
+		// console.log(arr.join(""));
+		for (let i = 0; i < 9; ++i)
+			cells[i].innerHTML = arr[i] || '';
+		await sleep(500);
+		if (!inAnimation)
+			return;
+	}
+	for (const cell of cells)
+		if (cell.innerHTML == "")
+			emptyCell = cell;
+	inAnimation = false;
+}
+
+// Initialization
+function init() {
+	inAnimation = false;
+	for (let i = 0; i < 9; ++i)
+		if (goal[i] == 0) {
+			emptyCell = cells[i];
+			cells[i].innerHTML = "";
+		}
+		else
+			cells[i].innerHTML = goal[i];
+}
+init();
+
+// Event Listeners
+cells.forEach(cell => cell.addEventListener("click", ev => {
+	if (!inAnimation) {
+		emptyCell.innerHTML = ev.target.innerHTML;
+		emptyCell = ev.target;
+		emptyCell.innerHTML = "";
+	}
+}));
+document.querySelector("button#init").addEventListener("click", init);
+document.querySelector("button#run").addEventListener("click", async () => {
+	let query = "", mode;
+	for (const cell of cells)
+		query += cell.innerHTML || "0";
+	for (const radio of radios)
+		if (radio.checked)
+			mode = radio.id.toLowerCase();
+	// alert(`/${mode}/${query}`);
+	if ((reversionCount(query) + reversionCount(goal)) % 2 != 0) {
+		resultElement.innerHTML = "No Goal Node (Checked)";
+		timeElement.innerHTML = "";
+		stepElement.innerHTML = "";
+		return;
+	}
+	const r = Module.ccall(mode, 'number', ['number', 'number'], [arrangementToInt(query), arrangementToInt(goal)]);
+	// console.log(res);
+	resultElement.innerHTML = res.length ? "Goal Node Found" : "No Goal Node (Executed)";
+	timeElement.innerHTML = r;
+	stepElement.innerHTML = res.length;
+	if (res.length)
+		animation();
+});
+		</script>
+	</body>
+</html>
